@@ -12,8 +12,8 @@ class LocalAllocator:
         4. Front-left
     """
 
-    def __init__(self, lateral_length, kq) -> None:
-        self.a = lateral_length/np.sqrt(2) # Lateral length from center to motor
+    def __init__(self, kq) -> None:
+        self.a = 0.237/np.sqrt(2) # Lateral length from center to motor
         self.kq = kq # Torque drag coefficient, estimated for local condition
 
     def allocate(self, trim_thrust, control):
