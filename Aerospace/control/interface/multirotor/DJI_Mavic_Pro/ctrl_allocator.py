@@ -16,6 +16,9 @@ class LocalAllocator:
         self.a = 0.237/np.sqrt(2) # Lateral length from center to motor
         self.kq = kq # Torque drag coefficient, estimated for local condition
 
+    def update_kq(self,kq):
+        self.kq = kq
+
     def allocate(self, trim_thrust, control):
         """
             Apply allocator on incoming control commands and output thrust commands

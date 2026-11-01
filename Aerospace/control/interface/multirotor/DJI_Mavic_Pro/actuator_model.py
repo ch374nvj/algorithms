@@ -50,5 +50,6 @@ class ActuatorModel:
         return int(round(0.5 * (high_rpm + low_rpm)))
 
     def drag_torque_coeff(self, rpm, rho):
+        # Estimated drag-torque coefficient which will be used by the linear allocator
         kq = (self.torque_from_rpm(rpm +self._kq_perturb) - self.torque_from_rpm(rpm-self._kq_perturb))/(self.thrust_from_rpm(rpm +self._kq_perturb, rho) - self.thrust_from_rpm(rpm -self._kq_perturb, rho))
         return kq
