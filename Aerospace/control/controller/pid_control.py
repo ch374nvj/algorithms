@@ -16,8 +16,24 @@ class PIDController:
     def _update(self, setpoint, measurement):
         self.error = setpoint - measurement
 
+    def reset(self):
+        self.integral_state = 0.
+        self.prev_error = 0.
+
     def _proportional(self):
         return self.kp * self.error
+
+    @property
+    def P(self):
+        return self._proportional()
+
+    @property
+    def I(self):
+        return self._integral()
+
+    @property
+    def D(self):
+        return self._derivative()
 
     def _integral(self):
         self.integral_state += self.error * self.dt
