@@ -2,7 +2,7 @@ from ...pid_control import PIDController
 import numpy as np
 
 class CascadedPIDControl:
-    def __init__(self, control_gains, dt) -> None:
+    def __init__(self, control_gains: dict, dt:float) -> None:
         """Inits the PID controller object with control gains
 
         Args:
