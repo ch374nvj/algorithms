@@ -28,9 +28,10 @@ class ActuatorModel:
 
         thrust_min = self.thrust_from_rpm(self.rpm_min, rho)
         thrust_max = self.thrust_from_rpm(self.rpm_max, rho)
-
-        if not thrust_min <= thrust <= thrust_max:
-            raise ValueError("Requested thrust is outside actuator limits.")
+        if thrust > thrust_max:
+            thrust = thrust_max
+        elif thrust < thrust_min:
+            thrust = thrust_min
 
         low_rpm = float(self.rpm_min)
         high_rpm = float(self.rpm_max)

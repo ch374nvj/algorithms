@@ -88,7 +88,18 @@ def main():
     u0 = vmod.u_trim
     nu0 = u0.size
 
+    # State array
     x = np.empty((nx0, n_t_plant), dtype=float)
+    # derivatives array
+    dx = np.empty((nx0, n_t_plant), dtype=float)
+    # attitude and altitude command array
+    v_cmd = np.empty((4, n_t_ctrl), dtype=float) 
+    # moment and collective thrust commands array
+    v = np.empty((4, n_t_ctrl), dtype=float)
+    # rpm commands array
+    u = np.empty((nu0, n_t_ctrl), dtype=float)
+
+    # setting trim states as init value for sim
     x[:, 0] = x0
 
     # timeseries control input
@@ -104,12 +115,18 @@ def main():
     vmod.rho_kgpm3 = 1.2
     trim_thrust = [vmod._thrust_model(u0[0])] * 4
 
-    for i, t in enumerate(t_plant, start=1):
-        print(t)
-        setpoints['phi'] = interp(time_data, phi_cmd, t)
-        setpoints['theta'] = interp(time_data, theta_cmd, t)
-        setpoints['psi'] = interp(time_data, psi_cmd, t)
-        setpoints['h'] = interp(time_data, alt_cmd, t)
+    for i, t in enumerate(t_plant[:-1], start=1):
+        # print(t)
+
+        v_cmd[0,i-1] = interp(time_data, phi_cmd, t)
+        v_cmd[1,i-1] = interp(time_data, theta_cmd, t)
+        v_cmd[2,i-1] = interp(time_data, psi_cmd, t)
+        v_cmd[3,i-1] = interp(time_data, alt_cmd, t)
+
+        [setpoints['phi'],
+        setpoints['theta'],
+        setpoints['psi'], 
+        setpoints['h']] = v_cmd[:,i-1]
 
         # x = u v w p q r phi theta psi x y h
         measurements['phi']   = x[6,i-1]
@@ -121,13 +138,58 @@ def main():
         measurements['h']     = -x[11,i-1]
         measurements['w_ned'] = x[2,i-1]
 
-        rho = interp(amod['alt_m'], amod['rho_kgpm3'], -x[11,i-1])
+        rho = vmod.rho_kgpm3
 
-        control_op = controller.compute_control(setpoints, measurements)
+        v[:,i] = controller.compute_control(setpoints, measurements)
 
-        rpm = vehicle_intf.u_cmd_perturb(control_op, trim_thrust, rho)
+        u[:,i] = vehicle_intf.u_cmd_perturb(v[:,i], trim_thrust, rho)
 
-        x[:,i] , _ = rk4(flat_earth_eom, t, x[:,i-1], rpm, dt_plant, vmod=vmod, amod=amod)
+        x[:,i] , _ = rk4(flat_earth_eom, t, x[:,i-1], u[:,i], dt_plant, vmod=vmod, amod=amod)
+
+    # plotting
+    simulation_test = 'quad_pid_ctrl_test_pitch_doublet'
+    test_count = 1
+
+    fig, axes = plt.subplots(1, 4, figsize=(10,6), layout="constrained")
+    fig.set_facecolor('black')
+    fig.suptitle("phi, theta, psi, alt", color="white")
+
+    d2r = 57.3
+
+     # roll channel
+    axes[0].plot(t_plant, x[6,:]*d2r, label='phi', color='red', linestyle='--')
+    axes[0].plot(t_plant, v_cmd[0,:]*d2r, label='phi_cmd', color='blue')
+    axes[0].set_xlabel('Time (sec)', color='white')
+    axes[0].set_ylabel('phi', color='white')
+    axes[0].grid(True)
+    axes[0].set_facecolor('black')
+    axes[0].tick_params(colors='white')
+
+    axes[1].plot(t_plant, x[7,:]*d2r, label='theta', color='red', linestyle='--')
+    axes[1].plot(t_plant, v_cmd[1,:]*d2r, label='theta_cmd', color='blue')
+    axes[1].set_xlabel('Time (sec)', color='white')
+    axes[1].set_ylabel('theta', color='white')
+    axes[1].grid(True)
+    axes[1].set_facecolor('black')
+    axes[1].tick_params(colors='white')
+
+    axes[2].plot(t_plant, x[8,:]*d2r, label='psi', color='red', linestyle='--')
+    axes[2].plot(t_plant, v_cmd[2,:]*d2r, label='psi_cmd', color='blue')
+    axes[2].set_xlabel('Time (sec)', color='white')
+    axes[2].set_ylabel('psi', color='white')
+    axes[2].grid(True)
+    axes[2].set_facecolor('black')
+    axes[2].tick_params(colors='white')
+
+    axes[3].plot(t_plant, -x[11,:], label='alt', color='red', linestyle='--')
+    axes[3].plot(t_plant, v_cmd[3,:], label='alt_cmd', color='blue')
+    axes[3].set_xlabel('Time (sec)', color='white')
+    axes[3].set_ylabel('alt', color='white')
+    axes[3].grid(True)
+    axes[3].set_facecolor('black')
+    axes[3].tick_params(colors='white')
+
+    plt.savefig(f'savefig/{simulation_test}_{test_count}.png')
 
 if __name__ == '__main__':
     main()
