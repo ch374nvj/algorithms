@@ -164,6 +164,7 @@ def main():
     axes[0].grid(True)
     axes[0].set_facecolor('black')
     axes[0].tick_params(colors='white')
+    axes[0].legend(facecolor='black', labelcolor='white')    
 
     axes[1].plot(t_plant, x[7,:]*d2r, label='theta', color='red', linestyle='--')
     axes[1].plot(t_plant, v_cmd[1,:]*d2r, label='theta_cmd', color='blue')
@@ -172,6 +173,7 @@ def main():
     axes[1].grid(True)
     axes[1].set_facecolor('black')
     axes[1].tick_params(colors='white')
+    axes[1].legend(facecolor='black', labelcolor='white')
 
     axes[2].plot(t_plant, x[8,:]*d2r, label='psi', color='red', linestyle='--')
     axes[2].plot(t_plant, v_cmd[2,:]*d2r, label='psi_cmd', color='blue')
@@ -180,6 +182,7 @@ def main():
     axes[2].grid(True)
     axes[2].set_facecolor('black')
     axes[2].tick_params(colors='white')
+    axes[2].legend(facecolor='black', labelcolor='white')
 
     axes[3].plot(t_plant, -x[11,:], label='alt', color='red', linestyle='--')
     axes[3].plot(t_plant, v_cmd[3,:], label='alt_cmd', color='blue')
@@ -188,6 +191,7 @@ def main():
     axes[3].grid(True)
     axes[3].set_facecolor('black')
     axes[3].tick_params(colors='white')
+    axes[3].legend(facecolor='black', labelcolor='white')
 
     plt.savefig(f'savefig/{simulation_test}_{test_count}.png')
 
