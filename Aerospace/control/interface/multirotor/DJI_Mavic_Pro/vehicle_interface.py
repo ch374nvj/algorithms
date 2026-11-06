@@ -1,6 +1,6 @@
 import numpy as np
-from actuator_model import ActuatorModel
-from ctrl_allocator import LocalAllocator
+from .actuator_model import ActuatorModel
+from .ctrl_allocator import LocalAllocator
 
 class VehicleInterface:
     def __init__(self) -> None:

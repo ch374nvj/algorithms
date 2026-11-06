@@ -1,11 +1,21 @@
 import numpy as np
 import ussa1976
+from collections import defaultdict
+import os
+import sys
+
+# (Adjusting the number of os.path.dirname calls to find simulations submodule)
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+
+# 2. Add it to Python's search path if it's not already there
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 from controller.multirotor.DJI_Mavic_Pro.pid_dji_mavic import CascadedPIDControl
 from interface.multirotor.DJI_Mavic_Pro.vehicle_interface import VehicleInterface
-from ...simulations.Aerospace.sixDOF.governing_equations import flat_earth_eom
-from ...simulations.Aerospace.sixDOF.numerical_integrators.numerical_integrator import rk4,rk4_timeseries
-from ...simulations.Aerospace.sixDOF.vehicle_models.multirotor import quadcopter
+from simulations.Aerospace.sixDOF.governing_equations import flat_earth_eom
+from simulations.Aerospace.sixDOF.numerical_integrators.numerical_integrator import rk4,rk4_timeseries
+from simulations.Aerospace.sixDOF.vehicle_models.multirotor import quadcopter
 
 def main():
     dt_plant = 0.01
@@ -41,7 +51,7 @@ def main():
     }
 
     # Controller gains
-    control_gains = {}
+    control_gains = defaultdict(dict)
 
     control_gains['roll']['kp'] = 0.1
     control_gains['pitch']['kp']= 0.1
@@ -74,3 +84,10 @@ def main():
     nx0 = x0.size
 
     x = np.empty((nx0, n_t_plant), dtype=float)
+
+    for i, t in enumerate(t_plant):
+        
+        pass
+
+if __name__ == '__main__':
+    main()
