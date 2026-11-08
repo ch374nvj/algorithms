@@ -11,6 +11,8 @@ class PIDController:
         self.integral_limit = integral_limit
         self.integral_state = 0.
         self.prev_error = 0.
+        self.u = 0.
+        self.error = 0.
         self.dt = dt
         self.err_func = err_func  # provision to use a custom error function over a usual subtraction
         if err_func is None:
@@ -45,18 +47,19 @@ class PIDController:
         return self.kp * self.error
     
     def _integral(self):
-        integral_np1 = self.integral_state + self.ki * self.error * self.dt
+        integral_np1 = self.integral_state + self.error * self.dt
         if self.i_limit_en:
             # Conditional integration for anti-windup
             integral_np1 = max(self.int_min, min(integral_np1, self.int_max))
             if (self.u in self.output_limit or (self.u > self.out_max and self.error < 0) 
                 or (self.u < self.out_min and self.error > 0)):
-                self.integral_state = integral_np1
+                # self.integral_state = integral_np1
+                pass
             else:
-                self.integral_state += integral_np1
+                self.integral_state = integral_np1
         else:
-            self.integral_state += integral_np1
-        return self.integral_state
+            self.integral_state = integral_np1
+        return self.ki * self.integral_state
 
     def _derivative(self):
         self.prev_error = self.error
