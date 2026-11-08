@@ -19,6 +19,7 @@ from simulations.Aerospace.sixDOF.governing_equations.flat_earth_eom import flat
 from simulations.Aerospace.sixDOF.numerical_integrators.numerical_integrator import rk4,rk4_timeseries
 from simulations.Aerospace.sixDOF.vehicle_models.multirotor import quadcopter
 from simulations.Aerospace.sixDOF.tools.Interpolators import interp
+from simulations.Aerospace.sixDOF.tools.state_space import StateSpace
 
 def main():
     dt_plant = 0.01
@@ -80,6 +81,13 @@ def main():
     vehicle_intf = VehicleInterface()
     controller = CascadedPIDControl(control_gains, dt_ctrl)
 
+    # Linear plant initialization
+    with np.load('../../simulations/Aerospace/sixDOF/dataset/DJI_mavic_pro_AB.npz') as data:
+        lin_plant_A = data['A']
+        lin_plant_B = data['B']
+
+    lin_plant = StateSpace(lin_plant_A, lin_plant_B, np.eye(12), np.zeros((12,4)), dt_plant)
+    
     # initial states and trim ctrl input settings
     # also preallocating data arrays for non-realtime sim
 
@@ -106,14 +114,16 @@ def main():
     time_data = np.array([0., 1., 1.1, 3., 3.1, 5., 5.1, 8., 8.1, 10.])
     delta = 5/57.3
     phi_cmd = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
-    theta_cmd = np.array([0., 0., -delta, -delta, 0., 0., delta, delta, 0., 0.])
+    # theta_cmd = np.array([0., 0., -delta, -delta, 0., 0., delta, delta, 0., 0.])
+    theta_cmd = np.array([0.] * 10)
     psi_cmd = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
     alt_cmd = 200 * np.array([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.])
 
     measurements = defaultdict(dict)
     setpoints = defaultdict(dict)
     vmod.rho_kgpm3 = 1.2
-    trim_thrust = [vmod._thrust_model(u0[0])] * 4
+    # trim_thrust = [vmod._thrust_model(u0[0])] * 4
+    trim_thrust = [0] * 4
 
     for i, t in enumerate(t_plant[:-1], start=1):
         # print(t)
@@ -144,10 +154,16 @@ def main():
 
         u[:,i] = vehicle_intf.u_cmd_perturb(v[:,i], trim_thrust, rho)
 
-        x[:,i] , _ = rk4(flat_earth_eom, t, x[:,i-1], u[:,i], dt_plant, vmod=vmod, amod=amod)
+        # Non-linear plant
+        # x[:,i] , _ = rk4(flat_earth_eom, t, x[:,i-1], u[:,i], dt_plant, vmod=vmod, amod=amod) 
+
+        # Linear plant
+        # x[:, i] = lin_plant.outputs(x[:,i-1], u[:,i])
+        x[:, i] = lin_plant.step(u[:,i-1])
+        # x[:, i] = x[:, i-1] + dt_plant * lin_plant._derivatives(0., x[:, i-1], u[:,i-1])
 
     # plotting
-    simulation_test = 'quad_pid_ctrl_test_pitch_doublet'
+    simulation_test = 'quad_pid_ctrl_test_pitch_doublet_ss'
     test_count = 1
 
     fig, axes = plt.subplots(1, 4, figsize=(10,6), layout="constrained")
