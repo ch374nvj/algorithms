@@ -21,6 +21,7 @@ def pitch_channel():
     Iyy = vmod.Jyy_b_kgm2
 
     # Controller requirements,
+    # pitch rate controller (PI):
     # choosing natural freq: 8 rad/s
     # damping ratio: 0.9
     # Analytically calculated gains,
@@ -29,7 +30,14 @@ def pitch_channel():
     kp = 0.0432
     ki = 0.192
 
-    ctrlr = PIDController(kp, ki, 0., dt, output_limit=[-50,50], integral_limit=[0,0])
+    q_ctrlr = PIDController(kp, ki, 0., dt, output_limit=[-50,50], integral_limit=[0,0])
+
+    # pitch controller (P):
+    # since the outer loop must be slower than inner loop, 
+    # we choose kp < inner loop's natural freq
+    #   kp < omega => kp < 8 rad/s
+    kp_theta = 2
+    theta_ctrlr = PIDController(kp_theta, 0., 0., dt, output_limit=[-10,10])
 
     # Set time conditions
     t0_s = 0.0
@@ -40,31 +48,43 @@ def pitch_channel():
 
     # init conditions
     q = 0.0
-    integral_error = 0.0
+    theta = 0.
 
     q_history = []
     q_cmd_history = []
     moment_history = []
     q_dot_history = []
     err_history = []
+    theta_history = []
+    theta_cmd_history = []
 
     for t in t_s:
 
-        # Pitch-rate reference (rad/s)
-        q_cmd = np.deg2rad(20.0) if t >= 0.5 else 0.0
+        # Pitch reference (rad)
+        theta_cmd = np.deg2rad(8.0) if t >= 1. else 0.
 
+        # Pitch-rate reference (rad/s)
+        # q_cmd = np.deg2rad(20.0) if t >= 0.5 else 0.0
+
+        # P controller: commanded pitch
+        q_cmd = theta_ctrlr.pid(theta_cmd, theta)
+        theta_error = theta_ctrlr.error
         # PI controller: commanded pitch moment
-        My_cmd = ctrlr.pid(q_cmd, q)
-        error = ctrlr.error
+        My_cmd = q_ctrlr.pid(q_cmd, q)
+        q_error = q_ctrlr.error
 
         # Rigid-body dynamics
         q_dot = My_cmd / Iyy
+        theta_dot = q
 
         # Integrate plant using Euler integration
         q += q_dot * dt
+        theta += q * dt
 
         # Log signals
-        err_history.append(error)
+        err_history.append(theta_error)
+        theta_history.append(theta)
+        theta_cmd_history.append(theta_cmd)
         q_history.append(q)
         q_dot_history.append(q_dot)
         q_cmd_history.append(q_cmd)
@@ -77,10 +97,10 @@ def pitch_channel():
 
     fig, ax = plt.subplots(4, 1, figsize=(10, 7), sharex=True)
 
-    ax[0].plot(t_s, np.rad2deg(q_cmd_history), '--', label="Command")
-    ax[0].plot(t_s, np.rad2deg(q_history), label="Actual")
-    ax[0].set_ylabel("Pitch rate (deg/s)")
-    ax[0].set_title("Pitch-rate PI tracking")
+    ax[0].plot(t_s, np.rad2deg(theta_cmd_history), '--', label="Command")
+    ax[0].plot(t_s, np.rad2deg(theta_history), label="Actual")
+    ax[0].set_ylabel("Pitch (deg)")
+    ax[0].set_title("Pitch P tracking")
     ax[0].grid(True)
     ax[0].legend()
 
@@ -96,13 +116,13 @@ def pitch_channel():
     # ax[2].set_title("Controller output")
     ax[2].grid(True)
 
-    ax[3].plot(t_s, q_dot_history)
-    ax[3].set_ylabel("qdot history")
+    ax[3].plot(t_s, q_history)
+    ax[3].set_ylabel("q history")
     ax[3].set_xlabel("Time (s)")
     # ax[3].set_title("Controller output")
     ax[3].grid(True)
 
 
-    plt.savefig(f'savefig/linear/pitch_rate_TF_control_analytical_gains.png')
+    plt.savefig(f'savefig/linear/pitch_rate_TF_control_outer_loop.png')
 
 pitch_channel()
