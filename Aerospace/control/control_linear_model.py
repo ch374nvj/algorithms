@@ -61,7 +61,7 @@ def pitch_channel():
     for t in t_s:
 
         # Pitch reference (rad)
-        theta_cmd = np.deg2rad(8.0) if t >= 1. else 0.
+        theta_cmd = np.deg2rad(15.0) if t >= 1. and t < 3 else np.deg2rad(-15.0) if t >= 3  else 0.
 
         # Pitch-rate reference (rad/s)
         # q_cmd = np.deg2rad(20.0) if t >= 0.5 else 0.0
@@ -123,6 +123,6 @@ def pitch_channel():
     ax[3].grid(True)
 
 
-    plt.savefig(f'savefig/linear/pitch_rate_TF_control_outer_loop.png')
+    plt.savefig(f'savefig/linear/pitch_rate_TF_control_doublet.png')
 
 pitch_channel()
