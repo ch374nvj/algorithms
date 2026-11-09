@@ -4,6 +4,20 @@ import matplotlib.pyplot as plt
 import os
 import sys
 
+# Conflicting Env variables fix
+# 1. Force Matplotlib to use the non-interactive backend everywhere
+os.environ["MPLBACKEND"] = "Agg"
+
+# 2. Clean up conflicting Snap/system environment variables before libraries load
+for var in ["LD_LIBRARY_PATH", "LD_PRELOAD", "GTK_PATH", "GIO_MODULE_DIR"]:
+    if var in os.environ:
+        del os.environ[var]
+
+# 3. Re-execute the script if we need to completely purge the OS-level linker cache
+# This acts exactly like running your `env -u` bash command automatically
+if any(v in os.environ for v in ["LD_LIBRARY_PATH", "LD_PRELOAD"]):
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 
 if PROJECT_ROOT not in sys.path:
@@ -61,7 +75,7 @@ def pitch_channel():
     for t in t_s:
 
         # Pitch reference (rad)
-        theta_cmd = np.deg2rad(15.0) if t >= 1. and t < 3 else np.deg2rad(-15.0) if t >= 3  else 0.
+        theta_cmd = np.deg2rad(15.0) if t >= 1. and t < 3 else np.deg2rad(-10.0) if t >= 3  else 0.
 
         # Pitch-rate reference (rad/s)
         # q_cmd = np.deg2rad(20.0) if t >= 0.5 else 0.0
@@ -125,4 +139,5 @@ def pitch_channel():
 
     plt.savefig(f'savefig/linear/pitch_rate_TF_control_doublet.png')
 
-pitch_channel()
+if __name__ == '__main__':
+    pitch_channel()
