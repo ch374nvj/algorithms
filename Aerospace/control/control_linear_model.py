@@ -1,4 +1,7 @@
 import numpy as np
+import pandas as pd
+import seaborn as sns
+import math
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import os
@@ -25,9 +28,9 @@ if PROJECT_ROOT not in sys.path:
 
 from controller.pid_control import PIDController
 from interface.multirotor.DJI_Mavic_Pro.vehicle_interface import VehicleInterface
+from simulations.Aerospace.sixDOF.numerical_integrators.numerical_integrator import rk4
 from simulations.Aerospace.sixDOF.tools.state_space import StateSpace
 from simulations.Aerospace.sixDOF.vehicle_models.multirotor.quadcopter import Quad_X_DJI_Mavic_Pro
-from simulations.Aerospace.sixDOF.numerical_integrators.numerical_integrator import rk4
 
 def pitch_channel_simple_rigid_model():
     dt = 0.01
@@ -145,10 +148,10 @@ def pitch_channel_state_space():
     vmod = Quad_X_DJI_Mavic_Pro()
     v_inf = VehicleInterface()
     with np.load('../../simulations/Aerospace/sixDOF/dataset/DJI_mavic_pro_lon.npz') as data:
-        lin_plant_A = data['A']
-        lin_plant_B = data['B']
+        lin_plant_A = data['Alon']
+        lin_plant_B = data['Blon']
 
-    lin_plant = StateSpace(lin_plant_A, lin_plant_B, np.eye(4), np.zeros((4,4)), dt_plant)
+    lin_plant = StateSpace(lin_plant_A, lin_plant_B, np.eye(4), np.zeros((4,4)), dt)
 
     # Taking gains that were used in PID control of simple pitch model
     kp_q = 0.0432
@@ -176,11 +179,17 @@ def pitch_channel_state_space():
     err_history = []
     theta_history = []
     theta_cmd_history = []
+    x = np.array([0.] * 4)
+    rpm_u1 = []
+    rpm_u2 = []
+    rpm_u3 = []
+    rpm_u4 = []
+    
 
     for i, t in enumerate(t_s):
 
         # Pitch reference (rad)
-        theta_cmd = np.deg2rad(15.0) if t >= 1. and t < 3 else np.deg2rad(-10.0) if t >= 3  else 0.
+        theta_cmd = np.deg2rad(8.0) if t > 1. else 0.
 
         # Pitch-rate reference (rad/s)
         # q_cmd = np.deg2rad(20.0) if t >= 0.5 else 0.0
@@ -192,9 +201,9 @@ def pitch_channel_state_space():
         My_cmd = q_ctrlr.pid(q_cmd, q)
         q_error = q_ctrlr.error
 
-        u = v_inf.u_cmd_perturb([0., My_cmd, 0., 0.], [0]*4, 1.2)
+        u = v_inf.u_cmd_perturb([0., 0., My_cmd, 0.], [0]*4, 1.2)
 
-        x = lin_plant.step(u)
+        x += dt * lin_plant._derivatives(0, x, u)
         q = x[2]
         theta = x[3]
 
@@ -203,9 +212,99 @@ def pitch_channel_state_space():
         theta_history.append(theta)
         theta_cmd_history.append(theta_cmd)
         q_history.append(q)
-        q_dot_history.append(q_dot)
         q_cmd_history.append(q_cmd)
         moment_history.append(My_cmd)
+        rpm_u1.append(u[0])
+        rpm_u2.append(u[1])
+        rpm_u3.append(u[2])
+        rpm_u4.append(u[3])
+
+    # ####################################
+    # Plotting using seaborn and pandas
+    # ####################################
+    # Set Seaborn aesthetic theme
+    sns.set_theme(style="whitegrid")
+
+    # 1. Define your data lists in a dictionary
+    df = pd.DataFrame({
+        "t_s": t_s,
+        "theta": np.rad2deg(theta_history),
+        "theta_cmd": np.rad2deg(theta_cmd),
+        "q": q,
+        "q_cmd": q_cmd_history,
+        "moment_cmd": moment_history,
+        "rpm1": rpm_u1,
+        "rpm2": rpm_u2,
+        "rpm3": rpm_u3,
+        "rpm4": rpm_u4,
+    })
+    # 3. Define the layout of your subplots and what goes into each box
+    # Each item in the list defines a subplot: 
+    # - if it's a string, it plots 1 line.
+    # - if it's a list/tuple of strings, it overlays multiple lines on that subplot!
+    subplot_configs = [
+        ["theta_cmd", "theta"],  # <-- Overlaid on the first subplot
+        ["q_cmd", "q"],
+        "moment_cmd",
+    ]
+
+    num_plots = len(subplot_configs)
+    ncols = 1
+    nrows = math.ceil(num_plots / ncols) if "math" else -1
+
+    # Let's use matplotlib's subplots directly with pandas for full control over overlays
+    fig, axes = plt.subplots(
+        nrows=nrows,
+        ncols=ncols,
+        figsize=(12, nrows * 3.5),
+        sharex=True,
+    )
+    axes = axes.flatten()
+
+    # 4. Loop through configurations and plot
+    for i, config in enumerate(subplot_configs):
+        ax = axes[i]
+
+    # Check if this subplot needs multiple lines overlaid
+        if isinstance(config, (list, tuple)):
+            for col in config:
+                ax.plot(
+                    df["t_s"],
+                    df[col],
+                    marker="o",
+                    linewidth=2,
+                    label=col,  # Label for legend
+                )
+            ax.legend(loc="upper left")  # Show legend to distinguish lines
+            ax.set_title(config, fontsize=11, fontweight="bold")
+    else:
+        # Single line plot
+        ax.plot(
+            df["t_s"],
+            df[config],
+            marker="s",
+            color="tab:orange",
+            linewidth=2,
+            label=config,
+        )
+        ax.set_title(config, fontsize=11, fontweight="bold")
+
+    ax.set_ylabel("Value", fontsize=9)
+    ax.grid(True, linestyle="--", alpha=0.6)
+
+    # 5. Hide unused empty subplot slots
+    for j in range(num_plots, len(axes)):
+        fig.delaxes(axes[j])
+
+    # Formatting and layout
+    fig.autofmt_xdate()
+    plt.tight_layout()
+    plt.savefig(
+    "savefig/linear/pitch_control_SS_step.png",
+    dpi=300,  # High resolution
+    bbox_inches="tight",  # Prevents labels/titles from getting cut off
+    )
+    plt.show()
 
 if __name__ == '__main__':
     # pitch_channel_simple_rigid_model()
