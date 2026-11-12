@@ -353,9 +353,9 @@ def roll_channel_state_space():
 
     # Taking gains that were used in PID control of simple pitch model
     # Gains are tuned to minimize chattering, not fully gone though
-    kp_p = 0.0432 * 1
-    ki_p = 0.192 * 1
-    kp_phi = 2 * 1
+    kp_p = 0.0432 * 0.2
+    ki_p = 0.192 * 1.8
+    kp_phi = 2 *1 
 
     p_ctrlr = PIDController(kp_p, ki_p, 0., dt, output_limit=[-50, 50], integral_limit=[0,0])
     phi_ctrlr  = PIDController(kp_phi, 0., 0., dt, output_limit=[-10,10])
@@ -400,7 +400,7 @@ def roll_channel_state_space():
         u = v_inf.u_cmd_perturb([0., Mx_cmd, 0., 0.], [0]*4, 1.2)
 
         x += dt * lin_plant._derivatives(0, x, u)
-        p = x[2]
+        p = x[1]
         phi = x[3]
 
         # Log signals
