@@ -28,6 +28,7 @@ if PROJECT_ROOT not in sys.path:
 
 from controller.pid_control import PIDController
 from interface.multirotor.DJI_Mavic_Pro.vehicle_interface import VehicleInterface
+from tools.plotter import plot_results
 from simulations.Aerospace.sixDOF.numerical_integrators.numerical_integrator import rk4
 from simulations.Aerospace.sixDOF.tools.state_space import StateSpace
 from simulations.Aerospace.sixDOF.vehicle_models.multirotor.quadcopter import Quad_X_DJI_Mavic_Pro
@@ -154,8 +155,9 @@ def pitch_channel_state_space():
     lin_plant = StateSpace(lin_plant_A, lin_plant_B, np.eye(4), np.zeros((4,4)), dt)
 
     # Taking gains that were used in PID control of simple pitch model
-    kp_q = 0.0432
-    ki_q = 0.192
+    # Gains are tuned to minimize chattering, not fully gone though
+    kp_q = 0.0432*0.2
+    ki_q = 0.192*1.8
     kp_theta = 2
 
     q_ctrlr = PIDController(kp_q, ki_q, 0., dt, output_limit=[-50, 50], integral_limit=[0,0])
@@ -222,15 +224,12 @@ def pitch_channel_state_space():
     # ####################################
     # Plotting using seaborn and pandas
     # ####################################
-    # Set Seaborn aesthetic theme
-    sns.set_theme(style="whitegrid")
-
     # 1. Define your data lists in a dictionary
-    df = pd.DataFrame({
+    df_sim = pd.DataFrame({
         "t_s": t_s,
         "theta": np.rad2deg(theta_history),
-        "theta_cmd": np.rad2deg(theta_cmd),
-        "q": q,
+        "theta_cmd": np.rad2deg(theta_cmd_history),
+        "q": q_history,
         "q_cmd": q_cmd_history,
         "moment_cmd": moment_history,
         "rpm1": rpm_u1,
@@ -238,74 +237,207 @@ def pitch_channel_state_space():
         "rpm3": rpm_u3,
         "rpm4": rpm_u4,
     })
-    # 3. Define the layout of your subplots and what goes into each box
-    # Each item in the list defines a subplot: 
-    # - if it's a string, it plots 1 line.
-    # - if it's a list/tuple of strings, it overlays multiple lines on that subplot!
+
     subplot_configs = [
         ["theta_cmd", "theta"],  # <-- Overlaid on the first subplot
         ["q_cmd", "q"],
         "moment_cmd",
     ]
+    save_path = "savefig/linear/pitch_control_SS_step.png"
 
-    num_plots = len(subplot_configs)
-    ncols = 1
-    nrows = math.ceil(num_plots / ncols) if "math" else -1
+    plot_results(df_sim, subplot_configs, save_path)
 
-    # Let's use matplotlib's subplots directly with pandas for full control over overlays
-    fig, axes = plt.subplots(
-        nrows=nrows,
-        ncols=ncols,
-        figsize=(12, nrows * 3.5),
-        sharex=True,
-    )
-    axes = axes.flatten()
+def roll_channel_simple_rigid_model():
+    dt = 0.01
+    vmod = Quad_X_DJI_Mavic_Pro()
+    v_inf = VehicleInterface()
+    Ixx = vmod.Jxx_b_kgm2
 
-    # 4. Loop through configurations and plot
-    for i, config in enumerate(subplot_configs):
-        ax = axes[i]
+    # Controller requirements,
+    # pitch rate controller (PI):
+    # choosing natural freq: 8 rad/s
+    # damping ratio: 0.9
+    # Analytically calculated gains,
+    # kp = 2 * zeta * omega * Ixx = 0.0432
+    # ki = omega^2 * Iyy = 0.192
+    # Took same gains for pitch coz drone is symmetric 
+    kp = 0.0432
+    ki = 0.192
 
-    # Check if this subplot needs multiple lines overlaid
-        if isinstance(config, (list, tuple)):
-            for col in config:
-                ax.plot(
-                    df["t_s"],
-                    df[col],
-                    marker="o",
-                    linewidth=2,
-                    label=col,  # Label for legend
-                )
-            ax.legend(loc="upper left")  # Show legend to distinguish lines
-            ax.set_title(config, fontsize=11, fontweight="bold")
-    else:
-        # Single line plot
-        ax.plot(
-            df["t_s"],
-            df[config],
-            marker="s",
-            color="tab:orange",
-            linewidth=2,
-            label=config,
-        )
-        ax.set_title(config, fontsize=11, fontweight="bold")
+    p_ctrlr = PIDController(kp, ki, 0., dt, output_limit=[-50,50], integral_limit=[0,0])
 
-    ax.set_ylabel("Value", fontsize=9)
-    ax.grid(True, linestyle="--", alpha=0.6)
+    # pitch controller (P):
+    # since the outer loop must be slower than inner loop, 
+    # we choose kp < inner loop's natural freq
+    #   kp < omega => kp < 8 rad/s
+    kp_phi = 2
+    phi_ctrlr = PIDController(kp_phi, 0., 0., dt, output_limit=[-10,10])
 
-    # 5. Hide unused empty subplot slots
-    for j in range(num_plots, len(axes)):
-        fig.delaxes(axes[j])
+    # Set time conditions
+    t0_s = 0.0
+    tf_s = 5.
+    h_s  = 0.01
+    t_s = np.arange(t0_s, tf_s + h_s, h_s)
+    nt_s = t_s.size
 
-    # Formatting and layout
-    fig.autofmt_xdate()
-    plt.tight_layout()
-    plt.savefig(
-    "savefig/linear/pitch_control_SS_step.png",
-    dpi=300,  # High resolution
-    bbox_inches="tight",  # Prevents labels/titles from getting cut off
-    )
-    plt.show()
+    # init conditions
+    p = 0.0
+    phi = 0.
+
+    p_history = []
+    p_cmd_history = []
+    moment_history = []
+    p_dot_history = []
+    err_history = []
+    phi_history = []
+    phi_cmd_history = []
+
+    for t in t_s:
+
+        # Pitch reference (rad)
+        phi_cmd = np.deg2rad(15.0) if t >= 1. and t < 3 else np.deg2rad(-10.0) if t >= 3  else 0.
+
+        # Pitch-rate reference (rad/s)
+        # q_cmd = np.deg2rad(20.0) if t >= 0.5 else 0.0
+
+        # P controller: commanded roll
+        p_cmd = phi_ctrlr.pid(phi_cmd, phi)
+        phi_error = phi_ctrlr.error
+        # PI controller: commanded pitch moment
+        Mx_cmd = p_ctrlr.pid(p_cmd, p)
+        p_error = p_ctrlr.error
+
+        # Rigid-body dynamics
+        p_dot = Mx_cmd / Ixx
+        phi_dot = p
+
+        # Integrate plant using Euler integration
+        p += p_dot * dt
+        phi += p * dt
+
+        # Log signals
+        err_history.append(phi_error)
+        phi_history.append(phi)
+        phi_cmd_history.append(phi_cmd)
+        p_history.append(p)
+        p_dot_history.append(p_dot)
+        p_cmd_history.append(p_cmd)
+        moment_history.append(Mx_cmd)
+
+    df_sim = pd.DataFrame({
+        "t_s": t_s,
+        "phi": np.rad2deg(phi_history),
+        "phi_cmd": np.rad2deg(phi_cmd_history),
+        "p": p_history,
+        "p_cmd": p_cmd_history,
+        "moment_cmd": moment_history,
+    })
+
+    subplot_config = [
+        ["phi_cmd", "phi"],
+        ["p_cmd", "p"],
+        ["moment_cmd"],
+    ]
+
+    plot_results(df_sim, subplot_config, 'savefig/linear/roll_control_TF.png')
+
+def roll_channel_state_space():
+    dt = 0.01
+    vmod = Quad_X_DJI_Mavic_Pro()
+    v_inf = VehicleInterface()
+    with np.load('../../simulations/Aerospace/sixDOF/dataset/DJI_mavic_pro_lat.npz') as data:
+        lin_plant_A = data['Alat']
+        lin_plant_B = data['Blat']
+
+    lin_plant = StateSpace(lin_plant_A, lin_plant_B, np.eye(5), np.zeros((5,4)), dt)
+
+    # Taking gains that were used in PID control of simple pitch model
+    # Gains are tuned to minimize chattering, not fully gone though
+    kp_p = 0.0432 * 1
+    ki_p = 0.192 * 1
+    kp_phi = 2 * 1
+
+    p_ctrlr = PIDController(kp_p, ki_p, 0., dt, output_limit=[-50, 50], integral_limit=[0,0])
+    phi_ctrlr  = PIDController(kp_phi, 0., 0., dt, output_limit=[-10,10])
+
+    # Set time conditions
+    t0_s = 0.0
+    tf_s = 5.
+    h_s  = 0.01
+    t_s = np.arange(t0_s, tf_s + h_s, h_s)
+    nt_s = t_s.size
+
+    # init conditions
+    p = 0.0
+    phi = 0.
+
+    p_history = []
+    p_cmd_history = []
+    moment_history = []
+    p_dot_history = []
+    err_history = []
+    phi_history = []
+    phi_cmd_history = []
+    x = np.array([0.] * 5)
+    rpm_u1 = []
+    rpm_u2 = []
+    rpm_u3 = []
+    rpm_u4 = []
+    
+
+    for i, t in enumerate(t_s):
+
+        # roll reference (rad)
+        phi_cmd = np.deg2rad(8.0) if t > 1. else 0.
+
+        # P controller: commanded pitch
+        p_cmd = phi_ctrlr.pid(phi_cmd, phi)
+        phi_error = phi_ctrlr.error
+        # PI controller: commanded pitch moment
+        Mx_cmd = p_ctrlr.pid(p_cmd, p)
+        p_error = p_ctrlr.error
+
+        u = v_inf.u_cmd_perturb([0., Mx_cmd, 0., 0.], [0]*4, 1.2)
+
+        x += dt * lin_plant._derivatives(0, x, u)
+        p = x[2]
+        phi = x[3]
+
+        # Log signals
+        err_history.append(phi_error)
+        phi_history.append(phi)
+        phi_cmd_history.append(phi_cmd)
+        p_history.append(p)
+        p_cmd_history.append(p_cmd)
+        moment_history.append(Mx_cmd)
+        rpm_u1.append(u[0])
+        rpm_u2.append(u[1])
+        rpm_u3.append(u[2])
+        rpm_u4.append(u[3])
+
+    df_sim = pd.DataFrame({
+        "t_s": t_s,
+        "phi": np.rad2deg(phi_history),
+        "phi_cmd": np.rad2deg(phi_cmd_history),
+        "p": p_history,
+        "p_cmd": p_cmd_history,
+        "moment_cmd": moment_history,
+        "rpm1": rpm_u1,
+        "rpm2": rpm_u2,
+        "rpm3": rpm_u3,
+        "rpm4": rpm_u4,
+        })
+    
+    subplot_config = [
+            ["phi_cmd", "phi"],
+            ["p_cmd", "p"],
+            ["moment_cmd"],
+        ]
+    
+    plot_results(df_sim, subplot_config, 'savefig/linear/roll_control_step_SS.png')
 
 if __name__ == '__main__':
     # pitch_channel_simple_rigid_model()
-    pitch_channel_state_space()
+    # pitch_channel_state_space()
+    # roll_channel_simple_rigid_model()
+    roll_channel_state_space()
