@@ -57,17 +57,17 @@ def main():
     # Controller gains
     control_gains = defaultdict(dict)
 
-    control_gains['roll']['kp'] = 0.1
-    control_gains['pitch']['kp']= 0.1
+    control_gains['roll']['kp'] = 2
+    control_gains['pitch']['kp']= 2
     control_gains['yaw']['kp']  = 0.1
 
-    control_gains['p']['kp']    = 0.1
-    control_gains['p']['ki']    = 0.1
-    control_gains['p']['kd']    = 0.1
+    control_gains['p']['kp']    = 0.00864
+    control_gains['p']['ki']    = 0.3456
+    control_gains['p']['kd']    = 0.
 
-    control_gains['q']['kp']    = 0.1
-    control_gains['q']['ki']    = 0.1
-    control_gains['q']['kd']    = 0.1
+    control_gains['q']['kp']    = 0.00864
+    control_gains['q']['ki']    = 0.3456
+    control_gains['q']['kd']    = 0.
 
     control_gains['r']['kp']    = 0.1
     control_gains['r']['ki']    = 0.1
