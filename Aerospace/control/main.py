@@ -33,6 +33,8 @@ def main():
     n_t_plant = t_plant.size
     n_t_ctrl = t_ctrl.size
 
+    np.set_printoptions(precision=4, suppress=True)
+
     # ####################################################
     #   plant, interface, controller & env initialization
     # ####################################################
@@ -59,7 +61,7 @@ def main():
 
     control_gains['roll']['kp'] = 2
     control_gains['pitch']['kp']= 2
-    control_gains['yaw']['kp']  = 0.1
+    control_gains['yaw']['kp']  = 0.
 
     control_gains['p']['kp']    = 0.00864
     control_gains['p']['ki']    = 0.3456
@@ -69,13 +71,13 @@ def main():
     control_gains['q']['ki']    = 0.3456
     control_gains['q']['kd']    = 0.
 
-    control_gains['r']['kp']    = 0.1
-    control_gains['r']['ki']    = 0.1
-    control_gains['r']['kd']    = 0.1
+    control_gains['r']['kp']    = 0.
+    control_gains['r']['ki']    = 0.
+    control_gains['r']['kd']    = 0.
 
-    control_gains['h']['kp']    = 0.1
-    control_gains['w']['kp']    = 0.1
-    control_gains['w']['ki']    = 0.1
+    control_gains['h']['kp']    = 0.
+    control_gains['w']['kp']    = 0.
+    control_gains['w']['ki']    = 0.
 
     vmod = quadcopter.Quad_X_DJI_Mavic_Pro()
     vehicle_intf = VehicleInterface()
@@ -113,9 +115,9 @@ def main():
     # timeseries control input
     time_data = np.array([0., 1., 1.1, 3., 3.1, 5., 5.1, 8., 8.1, 10.])
     delta = 5/57.3
-    phi_cmd = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
-    # theta_cmd = np.array([0., 0., -delta, -delta, 0., 0., delta, delta, 0., 0.])
-    theta_cmd = np.array([0.] * 10)
+    phi_cmd = np.array([0., 0., -delta, -delta, 0., 0., delta, delta, 0., 0.])
+    theta_cmd = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
+    # theta_cmd = np.array([0.] * 10)
     psi_cmd = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
     alt_cmd = 200 * np.array([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.])
 
@@ -123,7 +125,7 @@ def main():
     setpoints = defaultdict(dict)
     vmod.rho_kgpm3 = 1.2
     # trim_thrust = [vmod._thrust_model(u0[0])] * 4
-    trim_thrust = [0] * 4
+    trim_thrust = [1.884] * 4
 
     for i, t in enumerate(t_plant[:-1], start=1):
         # print(t)
@@ -151,19 +153,20 @@ def main():
         rho = vmod.rho_kgpm3
 
         v[:,i] = controller.compute_control(setpoints, measurements)
-
+        # print(v[:,i]) # for debug
         u[:,i] = vehicle_intf.u_cmd_perturb(v[:,i], trim_thrust, rho)
+        # print(u[:,i]) # for debug
 
         # Non-linear plant
-        # x[:,i] , _ = rk4(flat_earth_eom, t, x[:,i-1], u[:,i], dt_plant, vmod=vmod, amod=amod) 
-
+        x[:,i] , _ = rk4(flat_earth_eom, t, x[:,i-1], u[:,i], dt_plant, vmod=vmod, amod=amod) 
+        # print(x[3:9,i])
         # Linear plant
         # x[:, i] = lin_plant.outputs(x[:,i-1], u[:,i])
-        x[:, i] = lin_plant.step(u[:,i-1])
+        # x[:, i] = lin_plant.step(u[:,i-1])
         # x[:, i] = x[:, i-1] + dt_plant * lin_plant._derivatives(0., x[:, i-1], u[:,i-1])
 
     # plotting
-    simulation_test = 'quad_pid_ctrl_test_pitch_doublet_ss'
+    simulation_test = 'quad_pi_tuned_ctrl_test_roll_doublet_nl'
     test_count = 1
 
     fig, axes = plt.subplots(1, 4, figsize=(10,6), layout="constrained")
