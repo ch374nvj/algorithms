@@ -3,7 +3,8 @@ import ussa1976
 from collections import defaultdict
 import os
 import sys
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
+import pandas as pd
 import math
 
 # (Adjusting the number of os.path.dirname calls to find simulations submodule)
@@ -15,6 +16,7 @@ if PROJECT_ROOT not in sys.path:
 
 from controller.multirotor.DJI_Mavic_Pro.pid_dji_mavic import CascadedPIDControl
 from interface.multirotor.DJI_Mavic_Pro.vehicle_interface import VehicleInterface
+from tools.plotter import plot_results
 from simulations.Aerospace.sixDOF.governing_equations.flat_earth_eom import flat_earth_eom
 from simulations.Aerospace.sixDOF.numerical_integrators.numerical_integrator import rk4,rk4_timeseries
 from simulations.Aerospace.sixDOF.vehicle_models.multirotor import quadcopter
@@ -61,7 +63,7 @@ def main():
 
     control_gains['roll']['kp'] = 2
     control_gains['pitch']['kp']= 2.5
-    control_gains['yaw']['kp']  = 0.
+    control_gains['yaw']['kp']  = 2
 
     control_gains['p']['kp']    = 0.00864 
     control_gains['p']['ki']    = 0.3456 * 1
@@ -71,8 +73,8 @@ def main():
     control_gains['q']['ki']    = 0.3456 * 2
     control_gains['q']['kd']    = 0.
 
-    control_gains['r']['kp']    = 0.1
-    control_gains['r']['ki']    = 0.1
+    control_gains['r']['kp']    = 0.1008
+    control_gains['r']['ki']    = 0.448
     control_gains['r']['kd']    = 0.
 
     control_gains['h']['kp']    = 0.
@@ -109,7 +111,7 @@ def main():
     # rpm commands array
     u = np.empty((nu0, n_t_ctrl), dtype=float)
 
-    simulation_test = 'quad_pi_tuned_ctrl_test_roll_doublet_nl'
+    simulation_test = 'quad_pi_tuned_ctrl_test_roll_doublet_psi_cmd_nl'
     test_count = 2
     # setting trim states as init value for sim
     x[:, 0] = x0
@@ -121,7 +123,7 @@ def main():
     # theta_cmd = -1 * np.array([0., 0., -delta, -delta, 0., 0., delta, delta, 0., 0.])
     theta_cmd = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
     # theta_cmd = np.array([0.] * 10)
-    psi_cmd = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
+    psi_cmd = np.deg2rad(225) * np.array([1.] * 10)
     alt_cmd = 200 * np.array([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.])
 
     measurements = defaultdict(dict)
@@ -170,50 +172,30 @@ def main():
 
     # plotting
 
-    fig, axes = plt.subplots(1, 4, figsize=(10,6), layout="constrained")
-    fig.set_facecolor('black')
-    fig.suptitle("phi, theta, psi, alt", color="white")
-
-    d2r = 57.3
-
-     # roll channel
-    axes[0].plot(t_plant, x[6,:]*d2r, label='phi', color='red', linestyle='--')
-    axes[0].plot(t_plant, v_cmd[0,:]*d2r, label='phi_cmd', color='blue')
-    axes[0].set_xlabel('Time (sec)', color='white')
-    axes[0].set_ylabel('phi', color='white')
-    axes[0].grid(True)
-    axes[0].set_facecolor('black')
-    axes[0].tick_params(colors='white')
-    axes[0].legend(facecolor='black', labelcolor='white')    
-
-    axes[1].plot(t_plant, x[7,:]*d2r, label='theta', color='red', linestyle='--')
-    axes[1].plot(t_plant, v_cmd[1,:]*d2r, label='theta_cmd', color='blue')
-    axes[1].set_xlabel('Time (sec)', color='white')
-    axes[1].set_ylabel('theta', color='white')
-    axes[1].grid(True)
-    axes[1].set_facecolor('black')
-    axes[1].tick_params(colors='white')
-    axes[1].legend(facecolor='black', labelcolor='white')
-
-    axes[2].plot(t_plant, x[8,:]*d2r, label='psi', color='red', linestyle='--')
-    axes[2].plot(t_plant, v_cmd[2,:]*d2r, label='psi_cmd', color='blue')
-    axes[2].set_xlabel('Time (sec)', color='white')
-    axes[2].set_ylabel('psi', color='white')
-    axes[2].grid(True)
-    axes[2].set_facecolor('black')
-    axes[2].tick_params(colors='white')
-    axes[2].legend(facecolor='black', labelcolor='white')
-
-    axes[3].plot(t_plant, -x[11,:], label='alt', color='red', linestyle='--')
-    axes[3].plot(t_plant, v_cmd[3,:], label='alt_cmd', color='blue')
-    axes[3].set_xlabel('Time (sec)', color='white')
-    axes[3].set_ylabel('alt', color='white')
-    axes[3].grid(True)
-    axes[3].set_facecolor('black')
-    axes[3].tick_params(colors='white')
-    axes[3].legend(facecolor='black', labelcolor='white')
-
-    plt.savefig(f'savefig/{simulation_test}_{test_count}.png')
+    df_sim = pd.DataFrame({
+            "t_s": t_plant,
+            "phi": np.rad2deg(x[6,:]),
+            "phi_cmd": np.rad2deg(v_cmd[0,:]),
+            "theta": np.rad2deg(x[7,:]),
+            "theta_cmd": np.rad2deg(v_cmd[1,:]),
+            "psi" : np.rad2deg(x[8,:]),
+            "psi_cmd": np.rad2deg(v_cmd[2,:]),
+            "alt": -x[11,:],
+            "alt_cmd": v_cmd[3,:],
+            "rpm1": u[0,:],
+            "rpm2": u[1,:],
+            "rpm3": u[2,:],
+            "rpm4": u[3,:],
+        })
+        
+    subplot_config = [
+            ["phi_cmd", "phi"],
+            ["theta_cmd", "theta"],
+            ["psi_cmd", "psi"],
+            ["alt_cmd", "alt"],
+        ]
+    
+    plot_results(df_sim, subplot_config, f'savefig/{simulation_test}_{test_count}.png', ncols=4)
 
 if __name__ == '__main__':
     main()

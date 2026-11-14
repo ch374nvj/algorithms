@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-def plot_results(df, subplot_configs, save_path, dpi=300, show_plt = False):
+def plot_results(df, subplot_configs, save_path, dpi=300, show_plt = False, ncols=1):
     """
     Plots time-series simulation data from a DataFrame based on subplot configurations.
     
@@ -62,7 +62,6 @@ def plot_results(df, subplot_configs, save_path, dpi=300, show_plt = False):
     # plt.style.use('dark_background')
 
     num_plots = len(subplot_configs)
-    ncols = 1
     nrows = math.ceil(num_plots / ncols)
 
     # Create subplots
@@ -89,11 +88,11 @@ def plot_results(df, subplot_configs, save_path, dpi=300, show_plt = False):
                 ax.plot(
                     df["t_s"],
                     df[col],
-                    marker="o",
-                    linewidth=2,
+                    # marker="o",
+                    linewidth=2.,
                     label=col,  # Label for legend
                 )
-            ax.legend(loc="upper left")  # Show legend to distinguish lines
+            ax.legend()  # Show legend to distinguish lines
             title_str = ", ".join(config)
             ax.set_title(title_str, fontsize=11, fontweight="bold")
         else:
@@ -101,9 +100,9 @@ def plot_results(df, subplot_configs, save_path, dpi=300, show_plt = False):
             ax.plot(
                 df["t_s"],
                 df[config],
-                marker="s",
+                # marker="s",
                 color="tab:orange",
-                linewidth=2,
+                linewidth=2.5,
                 label=config,
             )
             ax.set_title(config, fontsize=11, fontweight="bold")
