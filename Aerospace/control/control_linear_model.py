@@ -6,6 +6,7 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import os
 import sys
+from interface.frame_transformation import FrameTransformer
 
 # Conflicting Env variables fix
 # 1. Force Matplotlib to use the non-interactive backend everywhere
@@ -543,11 +544,93 @@ def yaw_channel_state_space():
     
     plot_results(df_sim, subplot_config, 'savefig/linear/yaw_control_step_SS.png')
 
+def alt_channel_rigid_model():
+    dt = 0.01
+    vmod = Quad_X_DJI_Mavic_Pro()
+    v_inf = VehicleInterface()
+    mass = vmod.m_kg
+    f_tfr = FrameTransformer()
+
+    # Vertical velocity controller (PI)
+    # Analytically computed,
+    # kp = 2*zeta*omega*mass = 10.6992
+    # ki = omega^2 * mass = 47.552
+    v_kp = 10.6992
+    v_ki = 47.552
+
+    v_ctrlr = PIDController(v_kp, v_ki, 0., dt, output_limit=[-15,15])
+
+    # Altitude controller (P)
+    # analytically computed,
+    # kp < omega_n, kp = 6
+    alt_kp = 2
+    alt_ctrlr = PIDController(alt_kp, 0., 0., dt, output_limit=[-10, 10])
+
+    # Set time conditions
+    t0_s = 0.0
+    tf_s = 60.
+    h_s  = 0.01
+    t_s = np.arange(t0_s, tf_s + h_s, h_s)
+    nt_s = t_s.size
+
+    v = 0.
+    alt = 10.
+
+    alt_history = []
+    alt_cmd_history = []
+    v_history = []
+    v_cmd_history = []
+    err_history = []
+    thrust_cmd_history = []
+
+    for t in t_s:
+
+        # Altitude reference (m)
+        alt_cmd = 200. if t >= 1. else 0.
+        # Vertical velocity controller
+        v_cmd = alt_ctrlr.pid(alt_cmd, alt)
+        # collective thrust controller
+        thrust_cmd = v_ctrlr.pid(v_cmd, v)
+
+        # rigid body vertical velocity dynamics
+        vdot = thrust_cmd/mass + 9.81
+        v += vdot * dt
+        alt += v * dt
+
+        alt_cmd_history.append(alt_cmd)
+        alt_history.append(alt)
+        v_cmd_history.append(v_cmd)
+        v_history.append(v)
+        thrust_cmd_history.append(thrust_cmd)
+
+    # plotting
+
+    df_sim = pd.DataFrame({
+        "t_s": t_s,
+        "alt": alt_history,
+        "alt_cmd": alt_cmd_history,
+        "v": v_history,
+        "v_cmd": v_cmd_history,
+        "collec_thrust_cmd": thrust_cmd_history
+    })
+
+    subplot_configs = [
+        ["alt", "alt_cmd"],
+        ["v", "v_cmd"],
+        "collec_thrust_cmd",
+    ]
+
+    save_path = "savefig/linear/alt_ctrl_rigid_step_with_thrust_constraint.png"
+
+    plot_results(df_sim, subplot_configs, save_path)
+
+
 if __name__ == '__main__':
     # pitch_channel_simple_rigid_model()
     # pitch_channel_state_space()
     # roll_channel_simple_rigid_model()
     # roll_channel_state_space()
     # yaw_channel_simple_rigid_model()
-    yaw_channel_state_space()
+    # yaw_channel_state_space()
+    alt_channel_rigid_model()
     ...

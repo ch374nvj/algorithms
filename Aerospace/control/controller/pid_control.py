@@ -51,8 +51,8 @@ class PIDController:
         if self.i_limit_en:
             # Conditional integration for anti-windup
             integral_np1 = max(self.int_min, min(integral_np1, self.int_max))
-            if (self.u in self.output_limit or (self.u > self.out_max and self.error < 0) 
-                or (self.u < self.out_min and self.error > 0)):
+            if (self.u in self.output_limit or ((self.u > self.out_max if self.u_limit_en else True) and self.error < 0) 
+                or (((self.u < self.out_min) if self.u_limit_en else True) and self.error > 0)):
                 # self.integral_state = integral_np1
                 pass
             else:
