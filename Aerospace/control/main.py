@@ -60,19 +60,19 @@ def main():
     control_gains = defaultdict(dict)
 
     control_gains['roll']['kp'] = 2
-    control_gains['pitch']['kp']= 2
+    control_gains['pitch']['kp']= 2.5
     control_gains['yaw']['kp']  = 0.
 
-    control_gains['p']['kp']    = 0.00864
-    control_gains['p']['ki']    = 0.3456
+    control_gains['p']['kp']    = 0.00864 
+    control_gains['p']['ki']    = 0.3456 * 1
     control_gains['p']['kd']    = 0.
 
-    control_gains['q']['kp']    = 0.00864
-    control_gains['q']['ki']    = 0.3456
+    control_gains['q']['kp']    = 0.00864 * 2
+    control_gains['q']['ki']    = 0.3456 * 2
     control_gains['q']['kd']    = 0.
 
-    control_gains['r']['kp']    = 0.
-    control_gains['r']['ki']    = 0.
+    control_gains['r']['kp']    = 0.1
+    control_gains['r']['ki']    = 0.1
     control_gains['r']['kd']    = 0.
 
     control_gains['h']['kp']    = 0.
@@ -109,6 +109,8 @@ def main():
     # rpm commands array
     u = np.empty((nu0, n_t_ctrl), dtype=float)
 
+    simulation_test = 'quad_pi_tuned_ctrl_test_roll_doublet_nl'
+    test_count = 2
     # setting trim states as init value for sim
     x[:, 0] = x0
 
@@ -116,6 +118,7 @@ def main():
     time_data = np.array([0., 1., 1.1, 3., 3.1, 5., 5.1, 8., 8.1, 10.])
     delta = 5/57.3
     phi_cmd = np.array([0., 0., -delta, -delta, 0., 0., delta, delta, 0., 0.])
+    # theta_cmd = -1 * np.array([0., 0., -delta, -delta, 0., 0., delta, delta, 0., 0.])
     theta_cmd = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
     # theta_cmd = np.array([0.] * 10)
     psi_cmd = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
@@ -166,8 +169,6 @@ def main():
         # x[:, i] = x[:, i-1] + dt_plant * lin_plant._derivatives(0., x[:, i-1], u[:,i-1])
 
     # plotting
-    simulation_test = 'quad_pi_tuned_ctrl_test_roll_doublet_nl'
-    test_count = 1
 
     fig, axes = plt.subplots(1, 4, figsize=(10,6), layout="constrained")
     fig.set_facecolor('black')

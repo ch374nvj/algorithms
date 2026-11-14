@@ -436,8 +436,16 @@ def roll_channel_state_space():
     
     plot_results(df_sim, subplot_config, 'savefig/linear/roll_control_step_SS.png')
 
+def yaw_channel_simple_rigid_model():
+    ...
+
+def yaw_channel_state_space():
+    ...
+
 if __name__ == '__main__':
     # pitch_channel_simple_rigid_model()
     # pitch_channel_state_space()
     # roll_channel_simple_rigid_model()
     roll_channel_state_space()
+    # yaw_channel_simple_rigid_model()
+    # yaw_channel_state_space()
