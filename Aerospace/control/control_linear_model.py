@@ -440,12 +440,114 @@ def yaw_channel_simple_rigid_model():
     ...
 
 def yaw_channel_state_space():
-    ...
+    dt = 0.01
+    vmod = Quad_X_DJI_Mavic_Pro()
+    v_inf = VehicleInterface()
+    with np.load('../../simulations/Aerospace/sixDOF/dataset/DJI_mavic_pro_lat.npz') as data:
+        lin_plant_A = data['Alat']
+        lin_plant_B = data['Blat']
+
+    lin_plant = StateSpace(lin_plant_A, lin_plant_B, np.eye(5), np.zeros((5,4)), dt)
+
+    # Controller requirements,
+    # pitch rate controller (PI):
+    # choosing natural freq: 8 rad/s
+    # damping ratio: 0.9
+    # Analytically calculated gains,
+    # kp = 2 * zeta * omega * Izz = 2*0.9*8*0.007 = 0.1008
+    # ki = omega^2 * Izz = 8*8*0.007 = 0.448
+    kp_r = 0.1008
+    ki_r = 0.448
+
+    r_ctrlr = PIDController(kp_r, ki_r, 0., dt, output_limit=[-50, 50], integral_limit=[0,0])
+    # pitch controller (P):
+    # since the outer loop must be slower than inner loop, 
+    # we choose kp < inner loop's natural freq
+    #   kp < omega => kp < 8 rad/s
+    kp_psi = 2
+    psi_ctrlr  = PIDController(kp_psi, 0., 0., dt, output_limit=[-10,10])
+
+    # Set time conditions
+    t0_s = 0.0
+    tf_s = 5.
+    h_s  = 0.01
+    t_s = np.arange(t0_s, tf_s + h_s, h_s)
+    nt_s = t_s.size
+
+    # init conditions
+    r = 0.0
+    psi = 0.
+
+    r_history = []
+    r_cmd_history = []
+    moment_history = []
+    r_dot_history = []
+    err_history = []
+    psi_history = []
+    psi_cmd_history = []
+    x = np.array([0.] * 5)
+    rpm_u1 = []
+    rpm_u2 = []
+    rpm_u3 = []
+    rpm_u4 = []
+    
+
+    for i, t in enumerate(t_s):
+
+        # roll reference (rad)
+        psi_cmd = np.deg2rad(90.0) if t > 1. else 0.
+
+        # P controller: commanded pitch
+        r_cmd = psi_ctrlr.pid(psi_cmd, psi)
+        psi_error = psi_ctrlr.error
+        # PI controller: commanded pitch moment
+        Mz_cmd = r_ctrlr.pid(r_cmd, r)
+        r_error = r_ctrlr.error
+
+        u = v_inf.u_cmd_perturb([0., 0., 0., Mz_cmd], [0]*4, 1.2)
+
+        x += dt * lin_plant._derivatives(0, x, u)
+        r = x[2]
+        psi = x[4]
+
+        # Log signals
+        err_history.append(psi_error)
+        psi_history.append(psi)
+        psi_cmd_history.append(psi_cmd)
+        r_history.append(r)
+        r_cmd_history.append(r_cmd)
+        moment_history.append(Mz_cmd)
+        rpm_u1.append(u[0])
+        rpm_u2.append(u[1])
+        rpm_u3.append(u[2])
+        rpm_u4.append(u[3])
+
+    df_sim = pd.DataFrame({
+        "t_s": t_s,
+        "psi": np.rad2deg(psi_history),
+        "psi_cmd": np.rad2deg(psi_cmd_history),
+        "r": r_history,
+        "r_cmd": r_cmd_history,
+        "moment_cmd": moment_history,
+        "rpm1": rpm_u1,
+        "rpm2": rpm_u2,
+        "rpm3": rpm_u3,
+        "rpm4": rpm_u4,
+        })
+    
+    subplot_config = [
+            ["psi_cmd", "psi"],
+            ["r_cmd", "r"],
+            ["moment_cmd"],
+        ]
+    
+    plot_results(df_sim, subplot_config, 'savefig/linear/yaw_control_step_SS.png')
 
 if __name__ == '__main__':
     # pitch_channel_simple_rigid_model()
     # pitch_channel_state_space()
     # roll_channel_simple_rigid_model()
-    roll_channel_state_space()
+    # roll_channel_state_space()
     # yaw_channel_simple_rigid_model()
-    # yaw_channel_state_space()
+    yaw_channel_state_space()
+    ...

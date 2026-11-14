@@ -21,7 +21,45 @@ def plot_results(df, subplot_configs, save_path, dpi=300, show_plt = False):
     dpi : int, optional
         Resolution for the saved figure.
     """
-    sns.set_theme(style="whitegrid")
+    neon_palette = [
+        "#00FFFF",  # Electric Cyan
+        "#FF5E00",  # Neon Orange
+        "#FF00FF",  # Neon Magenta
+        "#39FF14",  # Neon Green / Lime
+        "#FFFF00",  # Bright Yellow
+        "#BF00FF",  # Electric Purple
+    ]
+
+    sns.set_theme(
+        style="darkgrid",
+        palette=neon_palette,
+        rc={
+            "figure.facecolor": "#000000",   # Outer plot background
+            "axes.facecolor": "#000000",     # Inner plot area background
+            "axes.edgecolor": "#333333",     # Subtle border around the plot
+            "text.color": "#FFFFFF",         # White title and text
+            "axes.labelcolor": "#FFFFFF",    # White x and y labels
+            "legend.facecolor": "#0D0D0D",   # Near-black legend box
+            "legend.edgecolor": "#333333",
+            # --- grid line settings ---
+            "grid.color": "#FFFFFF",         # Faint gridlines so neon pops
+            "grid.linewidth": 1.8,          # <-- Controls grid thickness (default is ~0.8)
+            "grid.linestyle": ":",
+            # --- tick settings --- 
+            "xtick.color": "#FFFFFF",        # Light gray tick marks
+            "ytick.color": "#FFFFFF",
+            "xtick.labelsize": 11,           # Larger tick numbers (default is ~10)
+            "ytick.labelsize": 11,
+            "xtick.major.size": 6,           # Length of the tick mark (0 hides them)
+            "ytick.major.size": 6,
+            "xtick.major.width": 1.5,        # Thickness of the tick mark
+            "ytick.major.width": 1.5,
+            "xtick.direction": "inout",        # Point ticks outward ("in", "out", or "inout")
+            "ytick.direction": "inout",
+        }
+    )
+
+    # plt.style.use('dark_background')
 
     num_plots = len(subplot_configs)
     ncols = 1
