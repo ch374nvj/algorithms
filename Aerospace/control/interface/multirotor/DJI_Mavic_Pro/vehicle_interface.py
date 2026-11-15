@@ -3,9 +3,9 @@ from .actuator_model import ActuatorModel
 from .ctrl_allocator import LocalAllocator
 
 class VehicleInterface:
-    def __init__(self) -> None:
+    def __init__(self, trim_rpm=5600, rho_trim=1.2) -> None:
         self._act_mod = ActuatorModel()
-        kq = self._act_mod.drag_torque_coeff(rpm=5600, rho=1.2)
+        kq = self._act_mod.drag_torque_coeff(rpm=trim_rpm, rho=rho_trim)
         self._alloc = LocalAllocator(kq)
 
     def u_cmd_perturb(self, u_vec, trim_thrust, rho):
@@ -17,4 +17,4 @@ class VehicleInterface:
             RPM_i = self._act_mod.rpm_from_thrust(T, rho)
             RPM_cmd.append(RPM_i)
 
-        return RPM_cmd
+        return np.asarray(RPM_cmd, dtype=float)

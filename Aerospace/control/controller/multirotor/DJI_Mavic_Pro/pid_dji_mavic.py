@@ -31,15 +31,15 @@ class CascadedPIDControl:
 
         self.dt = dt
 
-        self.roll_ctrl = PIDController(self.roll_kp, 0., 0., self.dt, [-10, 10], [0,0])
-        self.pitch_ctrl = PIDController(self.pitch_kp, 0., 0., self.dt, [-10, 10], [0,0])
-        self.yaw_ctrl = PIDController(self.yaw_kp, 0., 0., self.dt, [-180, 180], [0,0], err_func=self._wrap_to_pi)
+        self.roll_ctrl = PIDController(self.roll_kp, 0., 0., self.dt, [-10, 10])
+        self.pitch_ctrl = PIDController(self.pitch_kp, 0., 0., self.dt, [-10, 10])
+        self.yaw_ctrl = PIDController(self.yaw_kp, 0., 0., self.dt, [-180, 180], err_func=self._wrap_to_pi)
 
         self.p_ctrl = PIDController(self.p_kp, self.p_ki, self.p_kd, self.dt, [-4, 4], [-2,2])
         self.q_ctrl = PIDController(self.q_kp, self.q_ki, self.q_kd, self.dt, [-4, 4], [-2,2])
         self.r_ctrl = PIDController(self.r_kp, self.r_ki, self.r_kd, self.dt, [-4, 4], [-2,2])
 
-        self.alt_ctrl = PIDController(self.h_kp, 0., 0., self.dt, output_limit=[-10, 10])
+        self.alt_ctrl = PIDController(self.h_kp, 0., 0., self.dt, output_limit=[-1, 1], integral_limit=[-1,1])
         self.alt_rate_ctrl = PIDController(self.w_kp, self.w_ki, 0., self.dt, output_limit=[-15,15])
 
     def _wrap_to_pi(self, psi_cmd, psi):

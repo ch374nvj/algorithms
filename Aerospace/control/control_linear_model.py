@@ -635,7 +635,7 @@ def alt_channel_state_space():
         lin_plant_B = data['Blon']
 
     lin_plant = StateSpace(lin_plant_A, lin_plant_B, np.eye(4), np.zeros((4,4)), dt)
-
+    # print(lin_plant)
     # Controller requirements,
     # pitch rate controller (PI):
     # choosing natural freq: 8 rad/s
@@ -646,13 +646,13 @@ def alt_channel_state_space():
     v_kp = 10.6992
     v_ki = 47.552
 
-    v_ctrlr = PIDController(v_kp, v_ki, 0., dt, output_limit=[-15,15])
+    v_ctrlr = PIDController(v_kp, v_ki, 0., dt, output_limit=[-2,2], integral_limit=[-1, 1])
     
     # Altitude controller (P)
     # analytically computed,
-    # kp < omega_n, kp = 6
-    alt_kp = 2
-    alt_ctrlr = PIDController(alt_kp, 0., 0., dt, output_limit=[-10, 10])
+    # kp < omega_n
+    alt_kp = 1
+    alt_ctrlr = PIDController(alt_kp, 0., 0., dt, output_limit=[-5, 5], integral_limit=[-1,1])
 
     # Set time conditions
     t0_s = 0.0
@@ -662,7 +662,7 @@ def alt_channel_state_space():
     nt_s = t_s.size
 
     v = 0.
-    alt = 10.
+    alt = 0.
 
     alt_history = []
     alt_cmd_history = []
@@ -675,21 +675,30 @@ def alt_channel_state_space():
     rpm_u2 = []
     rpm_u3 = []
     rpm_u4 = []
-    hover_thrust = [(vmod.m_kg * 9.81)] * 4
+    hover_thrust = np.array([vmod.m_kg * 9.81] * 4) # hover thrust = 0.743 * 9.81 ~= 7.3N
+    hover_rpm = np.array([11197.]*4) # at 11197 RPM thrust is ~7.3N
 
-    for i, t in enumerate(t_s):
-
+    for t in t_s:
         # Altitude reference (m)
         alt_cmd = 200. if t >= 1. else 0.
         # Vertical velocity controller
         v_cmd = alt_ctrlr.pid(alt_cmd, alt)
+        err_history.append(alt_ctrlr.error)
         # collective thrust controller (delta T)
         delta_thrust_cmd = v_ctrlr.pid(v_cmd, v)
 
         u = v_inf.u_cmd_perturb([delta_thrust_cmd, 0., 0., 0.], hover_thrust, 1.2)
-
+        u -= hover_rpm
         x += dt * lin_plant._derivatives(0, x, u)
-        v = x[1]
+        # v = -x[1] # v_climb ~ (-w) 
+        v = f_tfr.vertical_velo_ned(
+            x[0],
+            0.,
+            x[1],
+            0.,
+            x[3],
+            0.,
+        ) # transforming body frame velo to NED
         alt += v * dt
 
         # Log signals
@@ -707,25 +716,27 @@ def alt_channel_state_space():
     
     df_sim = pd.DataFrame({
         "t_s": t_s,
+        "err_history":err_history,
         "alt": alt_history,
         "alt_cmd": alt_cmd_history,
         "v": v_history,
         "v_cmd": v_cmd_history,
         "collec_thrust_cmd": thrust_cmd_history,
-        "rpm_u1":rpm_u1,
-        "rpm_u2":rpm_u2,
-        "rpm_u3":rpm_u3,
-        "rpm_u4":rpm_u4,
+        "delta_rpm_u1":rpm_u1,
+        "delta_rpm_u2":rpm_u2,
+        "delta_rpm_u3":rpm_u3,
+        "delta_rpm_u4":rpm_u4,
     })
 
     subplot_configs = [
         ["alt", "alt_cmd"],
         ["v", "v_cmd"],
         "collec_thrust_cmd",
-        ["rpm_u1", "rpm_u2"],
+        ["delta_rpm_u1", "delta_rpm_u2"],
+        "err_history"
     ]
 
-    save_path = "savefig/linear/alt_ctrl_state_space_with_constraint.png"
+    save_path = "savefig/linear/alt_ctrl_state_space_with_constraint_2.png"
 
     plot_results(df_sim, subplot_configs, save_path, ncols=2)
 

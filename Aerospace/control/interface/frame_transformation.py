@@ -18,4 +18,4 @@ class FrameTransformer:
             for the controller
         """
         self._update(u, v, w, phi, theta, psi)
-        return self.u * np.sin(self.theta) - self.v * np.sin(self.phi) * np.cos(self.theta) - self.w * np.cos(self.phi) * np.cos(self.theta) 
+        return -1. * (-self.u * np.sin(self.theta) + self.v * np.sin(self.phi) * np.cos(self.theta) + self.w * np.cos(self.phi) * np.cos(self.theta))

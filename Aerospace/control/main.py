@@ -78,9 +78,9 @@ def main():
     control_gains['r']['ki']    = 0.448
     control_gains['r']['kd']    = 0.
 
-    control_gains['h']['kp']    = 2
-    control_gains['w']['kp']    = 10.6992
-    control_gains['w']['ki']    = 47.552
+    control_gains['h']['kp']    = 6
+    control_gains['w']['kp']    = 10.6992 #*10
+    control_gains['w']['ki']    = 47.552  #/30
 
     vmod = quadcopter.Quad_X_DJI_Mavic_Pro()
     vehicle_intf = VehicleInterface()
@@ -113,8 +113,8 @@ def main():
     # rpm commands array
     u = np.empty((nu0, n_t_ctrl), dtype=float)
 
-    simulation_test = 'quad_pi_tuned_ctrl_test_alt_cmd_nl'
-    test_count = 2
+    simulation_test = 'quad_pi_tuned_ctrl_test_full_cmd_nl'
+    test_count = 1
     # setting trim states as init value for sim
     x[:-1, 0] = x0[:-1]
     x[-1, 0] = -10.
@@ -126,8 +126,9 @@ def main():
     # phi_cmd = np.array([0., 0., -delta, -delta, 0., 0., delta, delta, 0., 0.])
     # theta_cmd = -1 * np.array([0., 0., -delta, -delta, 0., 0., delta, delta, 0., 0.])
     # theta_cmd = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
-    # psi_cmd = np.deg2rad(225) * np.array([1.] * 10)
-    alt_cmd = 200 * np.array([0., 0., 0., 0., 1., 1., 1., 1., 0., 0.])
+    # psi_cmd = np.deg2rad(-45) * np.array([1.] * 10)
+    # alt_cmd = 200 * np.array([0., 0., 0., 0., 1., 1., 1., 1., 0., 0.])
+    alt_cmd = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
 
     measurements = defaultdict(dict)
     setpoints = defaultdict(dict)
