@@ -62,7 +62,6 @@ class PIDController:
         return self.ki * self.integral_state
 
     def _derivative(self):
-        self.prev_error = self.error
         return self.kd * (self.error - self.prev_error) / self.dt
 
     def pid(self, setpoint, measurement):
@@ -70,6 +69,7 @@ class PIDController:
         self.u = self._proportional() + self._integral() + self._derivative()
         if self.u_limit_en:
             self.u = max(self.out_min, min(self.u, self.out_max))
+        self.prev_error = self.error
         return self.u
 
     @property
