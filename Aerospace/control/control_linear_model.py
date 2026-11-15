@@ -589,7 +589,7 @@ def alt_channel_rigid_model():
         alt_cmd = 200. if t >= 1. else 0.
         # Vertical velocity controller
         v_cmd = alt_ctrlr.pid(alt_cmd, alt)
-        # collective thrust controller
+        # collective thrust controller (delta T)
         thrust_cmd = v_ctrlr.pid(v_cmd, v)
 
         # rigid body vertical velocity dynamics
@@ -624,6 +624,112 @@ def alt_channel_rigid_model():
 
     plot_results(df_sim, subplot_configs, save_path)
 
+def alt_channel_state_space():
+    dt = 0.01
+    vmod = Quad_X_DJI_Mavic_Pro()
+    v_inf = VehicleInterface()
+    f_tfr = FrameTransformer()
+
+    with np.load('../../simulations/Aerospace/sixDOF/dataset/DJI_mavic_pro_lon.npz') as data:
+        lin_plant_A = data['Alon']
+        lin_plant_B = data['Blon']
+
+    lin_plant = StateSpace(lin_plant_A, lin_plant_B, np.eye(4), np.zeros((4,4)), dt)
+
+    # Controller requirements,
+    # pitch rate controller (PI):
+    # choosing natural freq: 8 rad/s
+    # damping ratio: 0.9
+    # Analytically calculated gains,
+    # kp = 2*zeta*omega*mass = 10.6992
+    # ki = omega^2 * mass = 47.552
+    v_kp = 10.6992
+    v_ki = 47.552
+
+    v_ctrlr = PIDController(v_kp, v_ki, 0., dt, output_limit=[-15,15])
+    
+    # Altitude controller (P)
+    # analytically computed,
+    # kp < omega_n, kp = 6
+    alt_kp = 2
+    alt_ctrlr = PIDController(alt_kp, 0., 0., dt, output_limit=[-10, 10])
+
+    # Set time conditions
+    t0_s = 0.0
+    tf_s = 60.
+    h_s  = 0.01
+    t_s = np.arange(t0_s, tf_s + h_s, h_s)
+    nt_s = t_s.size
+
+    v = 0.
+    alt = 10.
+
+    alt_history = []
+    alt_cmd_history = []
+    v_history = []
+    v_cmd_history = []
+    err_history = []
+    thrust_cmd_history = []
+    x = np.array([0.] * 4)
+    rpm_u1 = []
+    rpm_u2 = []
+    rpm_u3 = []
+    rpm_u4 = []
+    hover_thrust = [(vmod.m_kg * 9.81)] * 4
+
+    for i, t in enumerate(t_s):
+
+        # Altitude reference (m)
+        alt_cmd = 200. if t >= 1. else 0.
+        # Vertical velocity controller
+        v_cmd = alt_ctrlr.pid(alt_cmd, alt)
+        # collective thrust controller (delta T)
+        delta_thrust_cmd = v_ctrlr.pid(v_cmd, v)
+
+        u = v_inf.u_cmd_perturb([delta_thrust_cmd, 0., 0., 0.], hover_thrust, 1.2)
+
+        x += dt * lin_plant._derivatives(0, x, u)
+        v = x[1]
+        alt += v * dt
+
+        # Log signals
+        alt_cmd_history.append(alt_cmd)
+        alt_history.append(alt)
+        v_cmd_history.append(v_cmd)
+        v_history.append(v)
+        thrust_cmd_history.append(delta_thrust_cmd)
+        rpm_u1.append(u[0])
+        rpm_u2.append(u[1])
+        rpm_u3.append(u[2])
+        rpm_u4.append(u[3])
+
+    # plotting
+    
+    df_sim = pd.DataFrame({
+        "t_s": t_s,
+        "alt": alt_history,
+        "alt_cmd": alt_cmd_history,
+        "v": v_history,
+        "v_cmd": v_cmd_history,
+        "collec_thrust_cmd": thrust_cmd_history,
+        "rpm_u1":rpm_u1,
+        "rpm_u2":rpm_u2,
+        "rpm_u3":rpm_u3,
+        "rpm_u4":rpm_u4,
+    })
+
+    subplot_configs = [
+        ["alt", "alt_cmd"],
+        ["v", "v_cmd"],
+        "collec_thrust_cmd",
+        ["rpm_u1", "rpm_u2"],
+    ]
+
+    save_path = "savefig/linear/alt_ctrl_state_space_with_constraint.png"
+
+    plot_results(df_sim, subplot_configs, save_path, ncols=2)
+
+
 
 if __name__ == '__main__':
     # pitch_channel_simple_rigid_model()
@@ -632,5 +738,6 @@ if __name__ == '__main__':
     # roll_channel_state_space()
     # yaw_channel_simple_rigid_model()
     # yaw_channel_state_space()
-    alt_channel_rigid_model()
+    # alt_channel_rigid_model()
+    alt_channel_state_space()
     ...

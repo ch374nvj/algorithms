@@ -16,6 +16,7 @@ if PROJECT_ROOT not in sys.path:
 
 from controller.multirotor.DJI_Mavic_Pro.pid_dji_mavic import CascadedPIDControl
 from interface.multirotor.DJI_Mavic_Pro.vehicle_interface import VehicleInterface
+from interface.frame_transformation import FrameTransformer
 from tools.plotter import plot_results
 from simulations.Aerospace.sixDOF.governing_equations.flat_earth_eom import flat_earth_eom
 from simulations.Aerospace.sixDOF.numerical_integrators.numerical_integrator import rk4,rk4_timeseries
@@ -26,7 +27,7 @@ from simulations.Aerospace.sixDOF.tools.state_space import StateSpace
 def main():
     dt_plant = 0.01
     dt_ctrl = 0.01
-    sim_time = 10.
+    sim_time = 20.
 
     t0 = 0
 
@@ -77,13 +78,14 @@ def main():
     control_gains['r']['ki']    = 0.448
     control_gains['r']['kd']    = 0.
 
-    control_gains['h']['kp']    = 0.
-    control_gains['w']['kp']    = 0.
-    control_gains['w']['ki']    = 0.
+    control_gains['h']['kp']    = 2
+    control_gains['w']['kp']    = 10.6992
+    control_gains['w']['ki']    = 47.552
 
     vmod = quadcopter.Quad_X_DJI_Mavic_Pro()
     vehicle_intf = VehicleInterface()
     controller = CascadedPIDControl(control_gains, dt_ctrl)
+    f_tfr = FrameTransformer()
 
     # Linear plant initialization
     with np.load('../../simulations/Aerospace/sixDOF/dataset/DJI_mavic_pro_AB.npz') as data:
@@ -111,26 +113,27 @@ def main():
     # rpm commands array
     u = np.empty((nu0, n_t_ctrl), dtype=float)
 
-    simulation_test = 'quad_pi_tuned_ctrl_test_roll_doublet_psi_cmd_nl'
+    simulation_test = 'quad_pi_tuned_ctrl_test_alt_cmd_nl'
     test_count = 2
     # setting trim states as init value for sim
-    x[:, 0] = x0
+    x[:-1, 0] = x0[:-1]
+    x[-1, 0] = -10.
 
     # timeseries control input
     time_data = np.array([0., 1., 1.1, 3., 3.1, 5., 5.1, 8., 8.1, 10.])
+    phi_cmd = theta_cmd = psi_cmd = np.array([0.] * 10)
     delta = 5/57.3
-    phi_cmd = np.array([0., 0., -delta, -delta, 0., 0., delta, delta, 0., 0.])
+    # phi_cmd = np.array([0., 0., -delta, -delta, 0., 0., delta, delta, 0., 0.])
     # theta_cmd = -1 * np.array([0., 0., -delta, -delta, 0., 0., delta, delta, 0., 0.])
-    theta_cmd = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
-    # theta_cmd = np.array([0.] * 10)
-    psi_cmd = np.deg2rad(225) * np.array([1.] * 10)
-    alt_cmd = 200 * np.array([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.])
+    # theta_cmd = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
+    # psi_cmd = np.deg2rad(225) * np.array([1.] * 10)
+    alt_cmd = 200 * np.array([0., 0., 0., 0., 1., 1., 1., 1., 0., 0.])
 
     measurements = defaultdict(dict)
     setpoints = defaultdict(dict)
     vmod.rho_kgpm3 = 1.2
     # trim_thrust = [vmod._thrust_model(u0[0])] * 4
-    trim_thrust = [1.884] * 4
+    # trim_thrust = [1.884] * 4
 
     for i, t in enumerate(t_plant[:-1], start=1):
         # print(t)
@@ -139,6 +142,8 @@ def main():
         v_cmd[1,i-1] = interp(time_data, theta_cmd, t)
         v_cmd[2,i-1] = interp(time_data, psi_cmd, t)
         v_cmd[3,i-1] = interp(time_data, alt_cmd, t)
+        g = interp(amod['alt_m'], amod['g_mps2'], -x[11,i-1])
+        hover_thrust = [vmod.m_kg * g] * 4
 
         [setpoints['phi'],
         setpoints['theta'],
@@ -153,13 +158,21 @@ def main():
         measurements['psi']   = x[8,i-1]
         measurements['r']     = x[5,i-1]
         measurements['h']     = -x[11,i-1]
-        measurements['w_ned'] = x[2,i-1]
+        w_b = x[2,i-1]
+        measurements['w_ned'] = f_tfr.vertical_velo_ned(
+            x[0,i-1],
+            x[2,i-1],
+            x[3,i-1],
+            x[6,i-1],
+            x[7,i-1],
+            x[8,i-1],
+        )
 
         rho = vmod.rho_kgpm3
 
         v[:,i] = controller.compute_control(setpoints, measurements)
         # print(v[:,i]) # for debug
-        u[:,i] = vehicle_intf.u_cmd_perturb(v[:,i], trim_thrust, rho)
+        u[:,i] = vehicle_intf.u_cmd_perturb(v[:,i], hover_thrust, rho)
         # print(u[:,i]) # for debug
 
         # Non-linear plant

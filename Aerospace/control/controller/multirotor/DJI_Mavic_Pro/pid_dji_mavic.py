@@ -39,8 +39,8 @@ class CascadedPIDControl:
         self.q_ctrl = PIDController(self.q_kp, self.q_ki, self.q_kd, self.dt, [-4, 4], [-2,2])
         self.r_ctrl = PIDController(self.r_kp, self.r_ki, self.r_kd, self.dt, [-4, 4], [-2,2])
 
-        self.alt_ctrl = PIDController(self.h_kp, 0., 0., self.dt, [0, 500], [0,0])
-        self.alt_rate_ctrl = PIDController(self.w_kp, self.w_ki, 0., self.dt)
+        self.alt_ctrl = PIDController(self.h_kp, 0., 0., self.dt, output_limit=[-10, 10])
+        self.alt_rate_ctrl = PIDController(self.w_kp, self.w_ki, 0., self.dt, output_limit=[-15,15])
 
     def _wrap_to_pi(self, psi_cmd, psi):
         error = psi_cmd - psi
