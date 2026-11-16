@@ -12,6 +12,14 @@ The control system is designed with a hierarchical structure:
 - **State estimation**: Frame transformation and coordinate system conversions. A fully fledged estimator like kalman filter is in the works.
 - **Simulation framework**: Full 6-DOF nonlinear dynamics integration
 
+## AI usage declaration
+At a time when the use of AI LLMs is prevalent and helps speed up the code-writing process, I would like to clarify that no AI tools were used to write the code or develop the libraries, unless explicitly mentioned in the inline comments or in the commits (like [commit a196888](https://github.com/ch374nvj/algorithms/commit/a1968883745274e2868dced2f1bd4348f2d3fcbb) where I used AI to create a plotting code (saved lotta time)).
+
+As a personal principle, I generally avoid using AI tools for my personal projects.  However, I do use them as learning aids to explore and understand theoretical concepts, clarify doubts, and deepen my understanding of unfamiliar topics.
+
+I would also like to acknowledge that AI was used as an aid in debugging certain issues, such as resolving import errors involving my custom library packages 
+(like [commit b167719](https://github.com/ch374nvj/algorithms/commit/b167719e2e8c9b8539bc3affc06efb21cc0b86ed))
+
 ## Key Components
 
 ### 1. Core Controller Files
