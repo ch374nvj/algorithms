@@ -2,6 +2,10 @@
 
 This repository contains control algorithms, simulations, and testing frameworks for a quadcopter platform. The system implements cascaded PID controllers for attitude and altitude control, with support for both nonlinear and linear plant models.
 
+
+> [!TIP]
+> The algorithms simulation code is entirely written in python and heavily uses classes and objects (My fav). If it is a little hard to follow the code, I recommend you to open the specific file or folder in github and click on the commit history on the right side (one with the clock symbol). That way you can see how the code was written chronologically.
+
 ## Overview
 
 The control system is designed with a hierarchical structure:
