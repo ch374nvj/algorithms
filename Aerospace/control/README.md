@@ -1,6 +1,6 @@
 # Quadcopter Control Algorithms
 
-This repository contains control algorithms, simulations, and testing frameworks for a quadcopter platform. The system implements cascaded PID controllers for attitude and altitude control, with support for both nonlinear and linear plant models.
+This repository contains control algorithms, simulations, and testing code for a quadcopter platform. The system implements cascaded PID controllers for attitude and altitude control, with support for both nonlinear and linear plant models.
 
 
 > [!TIP]
@@ -13,7 +13,7 @@ The control system is designed with a hierarchical structure:
 - **High-level controllers**: Roll, pitch, yaw, and altitude angle control (outer loops)
 - **Low-level controllers**: Roll rate, pitch rate, yaw rate, and vertical velocity control (inner loops)
 - **Vehicle interface**: Actuator models and thrust-to-RPM conversion
-- **State estimation**: Frame transformation and coordinate system conversions. A fully fledged estimator like kalman filter is in the works.
+- **State transformation**: Frame transformation and coordinate system conversions.
 - **Simulation framework**: Full 6-DOF nonlinear dynamics integration
 
 ## AI usage declaration
@@ -66,7 +66,7 @@ I would also like to acknowledge that AI was used as an aid in debugging certain
 │   └── __init__.py
 ├── main.py                         # Full nonlinear simulation
 ├── control_linear_model.py         # Linear model control
-├── trim_thrust_calc.py             # Trim calculation utilities
+├── trim_thrust_calc.py             # Thrust calculation utilities
 ├── savefig/                       # Generated plots and results
 └── README.md                      # This document
 ```
@@ -106,6 +106,8 @@ This runs linear model control validation for:
 - Altitude control
 
 on simple rigid model and state-space models derived in the `simulations` submodule
+
+To quickly finish the execution of this script it's better to comment all function calls and uncomment each function/test on every execution.
 
 ### Trim Thrust Calculation
 
@@ -172,6 +174,9 @@ The system supports both nonlinear and linearized plant models:
 
 The `savefig/` directory contains generated plots from various test scenarios.
 
+### Nonlinear Model Validation
+Some of the plots appear to be not following or tracking the commanded setpoints, because they probably were not tuned yet, but in the latest plots (suffixed with a larger number like `quad_pi_tuned_ctrl_test_alt_cmd_nl_[3].png`), you can observe that gains have been tuned and desired results were obtained.
+
 ### Linear Model Validation
 - `linear/pitch_rate_TF_control_doublet.png`: Pitch rate control
 - `linear/pitch_control_SS_step.png`: State-space pitch tracking
@@ -215,9 +220,9 @@ Detailed physics-based modeling, obtained [here](https://github.com/souhaiel1/DJ
 
 ## Testing and Validation
 
-### Disturbance Scenarios
-1. **Step Input**: Abrupt changes in attitude commands
-2. **Doublet Input**: Roll/pitch rate disturbances
+### Various Input Scenarios
+1. **Step Input**: Single input commands
+2. **Doublet Input**: Abrupt changes in attitude commands
 3. **Coordinated Turns**: Combined yaw and roll maneuvers
 4. **Altitude Changes**: Vertical trajectory tracking
 
