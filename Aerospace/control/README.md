@@ -16,6 +16,48 @@ The control system is designed with a hierarchical structure:
 - **State transformation**: Frame transformation and coordinate system conversions.
 - **Simulation framework**: Full 6-DOF nonlinear dynamics integration
 
+## Architecture Diagram
+
+```mermaid
+flowchart LR
+    A[Operator / Setpoints<br/>phi, theta, psi, h] --> B[CascadedPIDControl<br/>pid_dji_mavic.py]
+
+    subgraph B1 [Outer Loop - Angle Control]
+        B --> B2[Roll P → p_cmd]
+        B --> B3[Pitch P → q_cmd]
+        B --> B4[Yaw P → r_cmd]
+        B --> B5[Altitude P → v_cmd]
+    end
+
+    subgraph B2g [Inner Loop - Rate Control]
+        B2 --> C1[Roll rate PI → L_cmd]
+        B3 --> C2[Pitch rate PI → M_cmd]
+        B4 --> C3[Yaw rate PI → N_cmd]
+        B5 --> C4[Vertical velo PI → delta_T_cmd]
+    end
+
+    C1 & C2 & C3 & C4 --> D[Control vector<br/>delta_T, L, M, N]
+
+    D --> E[VehicleInterface<br/>vehicle_interface.py]
+    E --> F[LocalAllocator<br/>ctrl_allocator.py<br/>thrust & moment allocation]
+    F --> G[ActuatorModel<br/>actuator_model.py<br/>thrust ↔ RPM]
+    G --> H[4× Motor RPM commands]
+
+    H --> I[6-DOF Quadcopter Plant<br/>flat_earth_eom + rk4]
+    I --> J[State vector<br/>phi, theta, psi, p, q, r, h, w]
+    J --> K[FrameTransformer<br/>frame_transformation.py<br/>body ↔ NED]
+    K --> B
+
+    I -.->|log & visualize| L[Plotter<br/>tools/plotter.py]
+
+    style B1 fill:#e1f5fe,stroke:#0277bd
+    style B2g fill:#fff3e0,stroke:#ef6c00
+    style E fill:#f3e5f5,stroke:#6a1b9a
+    style I fill:#e8f5e9,stroke:#2e7d32
+```
+
+The control loop flows from the operator's desired setpoints through the cascaded PID controllers (outer angle loop → inner rate loop), which produce thrust and moment commands. These are allocated to per-motor RPM commands by the `VehicleInterface` (control allocation + actuator model) and applied to the 6-DOF nonlinear plant. The resulting state is fed back to close the loop, with frame transformations and plotting handled as side paths.
+
 ## AI usage declaration
 At a time when the use of AI LLMs is prevalent and helps speed up the code-writing process, I would like to clarify that no AI tools were used to write the code or develop the libraries, unless explicitly mentioned in the inline comments or in the commits (like [commit a196888](https://github.com/ch374nvj/algorithms/commit/a1968883745274e2868dced2f1bd4348f2d3fcbb) where I used AI to create a plotting code (saved lotta time)).
 
